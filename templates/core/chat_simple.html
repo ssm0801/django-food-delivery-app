@@ -1,0 +1,115 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5>Chat - Booking #{{ booking.id }}</h5>
+                <small class="text-muted">
+                    Customer: {{ booking.customer.userprofile.mobile }} | 
+                    Delivery Partner: {{ booking.delivery_partner.userprofile.mobile }} |
+                    Status: <span class="badge bg-{% if booking.status == 'delivered' %}success{% else %}warning{% endif %}">{{ booking.get_status_display }}</span>
+                </small>
+                <div class="mt-2">
+                    <small><strong>Pickup:</strong> {{ booking.pickup_address|truncatechars:50 }}</small><br>
+                    <small><strong>Delivery:</strong> {{ booking.delivery_address|truncatechars:50 }}</small>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="chat-messages" style="height: 400px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; margin-bottom: 15px;">
+                    {% for message in messages %}
+                        <div class="mb-2 {% if message.sender == user %}text-end{% endif %}">
+                            <div class="d-inline-block p-2 rounded {% if message.sender == user %}bg-primary text-white{% else %}bg-light{% endif %}">
+                                <strong>{{ message.sender.username }}:</strong> {{ message.message }}
+                                <br><small class="{% if message.sender == user %}text-light{% else %}text-muted{% endif %}">{{ message.timestamp|date:"H:i" }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <form id="message-form" method="post">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="text" id="message-input" name="message" class="form-control" placeholder="Type your message..." required>
+                        <button class="btn btn-primary" type="submit">Send</button>
+                    </div>
+                </form>
+                
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Refresh Messages</button>
+                        Auto-refresh: <span id="countdown">3</span>s
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Simple polling for real-time effect
+let countdown = 10;
+setInterval(function() {
+    countdown--;
+    document.getElementById('countdown').textContent = countdown;
+    if (countdown <= 0) {
+        location.reload();
+    }
+}, 1000);
+
+// Handle form submission
+document.getElementById('message-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    
+    if (message) {
+        // Send via AJAX
+        fetch('{% url "send_message" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                booking_id: {{ booking.id }},
+                message: message
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                messageInput.value = '';
+                // Add message to chat immediately
+                const messagesDiv = document.getElementById('chat-messages');
+                const isCurrentUser = true;
+                const messageHtml = `
+                    <div class="mb-2 text-end">
+                        <div class="d-inline-block p-2 rounded bg-primary text-white">
+                            <strong>You:</strong> ${message}
+                            <br><small class="text-light">${data.timestamp}</small>
+                        </div>
+                    </div>
+                `;
+                messagesDiv.innerHTML += messageHtml;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to send message');
+        });
+    }
+});
+
+// Scroll to bottom on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+</script>
+{% endblock %}

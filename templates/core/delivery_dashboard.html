@@ -1,0 +1,64 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<h2>Delivery Partner Dashboard</h2>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Assigned Bookings</h5>
+            </div>
+            <div class="card-body">
+                {% if bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer</th>
+                                    <th>Pickup</th>
+                                    <th>Delivery</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in bookings %}
+                                <tr>
+                                    <td>#{{ booking.id }}</td>
+                                    <td>{{ booking.customer.userprofile.mobile }}</td>
+                                    <td>{{ booking.pickup_address|truncatechars:30 }}</td>
+                                    <td>{{ booking.delivery_address|truncatechars:30 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if booking.status == 'delivered' %}success{% elif booking.status == 'assigned' %}info{% else %}warning{% endif %}">
+                                            {{ booking.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if booking.status != 'delivered' %}
+                                            <a href="{% url 'update_booking_status' booking.id %}" class="btn btn-sm btn-success">
+                                                {% if booking.status == 'assigned' %}Start Journey
+                                                {% elif booking.status == 'start' %}Mark Reached
+                                                {% elif booking.status == 'reached' %}Mark Collected
+                                                {% elif booking.status == 'collected' %}Mark Delivered
+                                                {% endif %}
+                                            </a>
+                                        {% endif %}
+                                        {% if booking.status != 'delivered' %}
+                                            <a href="{% url 'simple_chat' booking.id %}" class="btn btn-sm btn-primary">Chat</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No assigned bookings yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

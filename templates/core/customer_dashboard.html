@@ -1,0 +1,64 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Customer Dashboard</h2>
+    <a href="{% url 'create_booking' %}" class="btn btn-success">Create New Booking</a>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>My Bookings</h5>
+            </div>
+            <div class="card-body">
+                {% if bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Pickup</th>
+                                    <th>Delivery</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in bookings %}
+                                <tr>
+                                    <td>#{{ booking.id }}</td>
+                                    <td>{{ booking.pickup_address|truncatechars:30 }}</td>
+                                    <td>{{ booking.delivery_address|truncatechars:30 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if booking.status == 'delivered' %}success{% elif booking.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                                            {{ booking.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ booking.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if booking.status in 'pending,assigned' %}
+                                            <a href="{% url 'cancel_booking' booking.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Cancel</a>
+                                        {% endif %}
+                                        {% if booking.delivery_partner and booking.status not in 'pending,cancelled' %}
+                                            <a href="{% url 'simple_chat' booking.id %}" class="btn btn-sm btn-primary">Chat</a>
+                                        {% endif %}
+                                        {% if booking.status == 'pending' %}
+                                            <small class="text-muted">Waiting for assignment</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No bookings yet. <a href="{% url 'create_booking' %}">Create your first booking</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

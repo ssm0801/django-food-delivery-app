@@ -1,0 +1,31 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h2 class="card-title">Welcome to Food Delivery</h2>
+                <p class="card-text">Your reliable food delivery service</p>
+                {% if not user.is_authenticated %}
+                    <a href="{% url 'login' %}" class="btn btn-primary">Login</a>
+                {% else %}
+                    {% if user.userprofile %}
+                        <p>You are logged in as {{ user.userprofile.get_role_display }}</p>
+                        {% if user.userprofile.role == 'customer' %}
+                            <a href="{% url 'customer_dashboard' %}" class="btn btn-primary">Go to Dashboard</a>
+                        {% elif user.userprofile.role == 'delivery_partner' %}
+                            <a href="{% url 'delivery_dashboard' %}" class="btn btn-primary">Go to Dashboard</a>
+                        {% elif user.userprofile.role == 'admin' %}
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">Go to Admin Panel</a>
+                        {% endif %}
+                    {% else %}
+                        <p>Welcome {{ user.username }}!</p>
+                        <a href="{% url 'login' %}" class="btn btn-primary">Complete Profile</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
