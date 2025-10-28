@@ -72,7 +72,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'fooddelivery.wsgi.application'
 ASGI_APPLICATION = 'fooddelivery.asgi.application'
 
-# Channel Layers - Try Redis first, fallback to in-memory
+# Channel Layers - Optimized for performance
 try:
     import redis
     redis_client = redis.Redis(host='127.0.0.1', port=6379, db=0)
@@ -83,14 +83,20 @@ try:
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
                 'hosts': [('127.0.0.1', 6379)],
+                'capacity': 1500,
+                'expiry': 60,
             },
         },
     }
 except:
-    # Redis not available, use in-memory (development only)
+    # Redis not available, use optimized in-memory
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'CONFIG': {
+                'capacity': 300,
+                'expiry': 60,
+            },
         },
     }
 
@@ -140,8 +146,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

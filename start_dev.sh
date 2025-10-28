@@ -7,14 +7,14 @@ echo "🚀 Starting Food Delivery App Development Server..."
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    python3 -m venv .venv
 fi
 
 # Activate virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install dependencies if requirements.txt is newer than last install
-if [ requirements.txt -nt venv/pyvenv.cfg ]; then
+if [ requirements.txt -nt .venv/pyvenv.cfg ]; then
     echo "Installing/updating dependencies..."
     pip install -r requirements.txt
 fi
@@ -22,6 +22,10 @@ fi
 # Run migrations if needed
 echo "Checking for database migrations..."
 python manage.py migrate
+
+# Collect static files for admin styling
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
 
 # Setup initial data if no users exist
 USER_COUNT=$(python manage.py shell -c "from django.contrib.auth.models import User; print(User.objects.count())" 2>/dev/null | tail -1)
@@ -54,5 +58,7 @@ echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
 
-# Start the development server
-python manage.py runserver
+# Start the development server with ASGI support using daphne
+echo "Starting ASGI server with WebSocket support..."
+export DJANGO_SETTINGS_MODULE=fooddelivery.settings
+daphne -b 127.0.0.1 -p 8000 fooddelivery.asgi:application

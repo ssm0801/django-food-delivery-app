@@ -7,12 +7,12 @@ A Django-based food delivery application with real-time chat functionality betwe
 - **Customer Features:**
   - Login via mobile number & OTP (static OTP: 1234)
   - Create, view, and cancel bookings
-  - Real-time chat with assigned delivery partner
+  - **Real-time WebSocket chat** with assigned delivery partner
 
 - **Delivery Partner Features:**
   - View assigned bookings
   - Update booking status (Start → Reached → Collected → Delivered)
-  - Real-time chat with customers
+  - **Real-time WebSocket chat** with customers
 
 - **Admin Features:**
   - View all bookings
@@ -22,10 +22,10 @@ A Django-based food delivery application with real-time chat functionality betwe
 ## Tech Stack
 
 - Django 4.2.7
-- Django Channels (WebSocket support)
-- Redis (for channel layers)
+- **Django Channels 4.0.0** (Real-time WebSocket support)
+- **Redis 5.0.1** (Channel layers for WebSocket scaling)
 - Bootstrap 5 (Frontend styling)
-- jQuery (Frontend interactions)
+- Vanilla JavaScript (Real-time chat UI)
 
 ## Setup Instructions
 
@@ -70,7 +70,11 @@ A Django-based food delivery application with real-time chat functionality betwe
 
 7. **Run the development server:**
    ```bash
-   python manage.py runserver
+   # Use the start script (recommended)
+   ./start_dev.sh
+   
+   # Or manually start ASGI server for WebSocket support
+   daphne -b 127.0.0.1 -p 8000 fooddelivery.asgi:application
    ```
 
 ## Default Users
@@ -96,8 +100,8 @@ After running `setup_data` command:
    - Login with any mobile number + OTP (1234)
    - Create a new booking with pickup and delivery addresses
    - Wait for admin to assign a delivery partner
-   - Chat with delivery partner once assigned
-   - Track booking status updates
+   - **Real-time WebSocket chat** with delivery partner once assigned
+   - Track booking status updates in real-time
 
 2. **Admin Journey:**
    - Login with admin credentials
@@ -109,7 +113,7 @@ After running `setup_data` command:
    - Login with delivery partner credentials
    - View assigned bookings
    - Update booking status through the workflow
-   - Chat with customers
+   - **Real-time WebSocket chat** with customers
 
 ## API Endpoints
 

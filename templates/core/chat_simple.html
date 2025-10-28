@@ -28,8 +28,7 @@
                     {% endfor %}
                 </div>
                 
-                <form id="message-form" method="post">
-                    {% csrf_token %}
+                <form id="message-form">
                     <div class="input-group">
                         <input type="text" id="message-input" name="message" class="form-control" placeholder="Type your message..." required>
                         <button class="btn btn-primary" type="submit">Send</button>
@@ -37,9 +36,8 @@
                 </form>
                 
                 <div class="mt-2">
-                    <small class="text-muted">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Refresh Messages</button>
-                        Auto-refresh: <span id="countdown">3</span>s
+                    <small class="text-muted" id="connection-status">
+                        <span class="badge bg-success">Connected</span> Real-time chat
                     </small>
                 </div>
             </div>
@@ -48,15 +46,54 @@
 </div>
 
 <script>
-// Simple polling for real-time effect
-let countdown = 10;
-setInterval(function() {
-    countdown--;
-    document.getElementById('countdown').textContent = countdown;
-    if (countdown <= 0) {
-        location.reload();
-    }
-}, 1000);
+const bookingId = {{ booking.id }};
+const currentUser = '{{ user.username }}';
+let chatSocket;
+
+// Initialize WebSocket connection
+function initWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/chat/${bookingId}/`;
+    
+    chatSocket = new WebSocket(wsUrl);
+    
+    chatSocket.onopen = function(e) {
+        document.getElementById('connection-status').innerHTML = '<span class="badge bg-success">Connected</span> Real-time chat';
+    };
+    
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        addMessageToChat(data.message, data.sender, data.timestamp);
+    };
+    
+    chatSocket.onclose = function(e) {
+        document.getElementById('connection-status').innerHTML = '<span class="badge bg-warning">Disconnected</span> Reconnecting...';
+        // Reconnect after 3 seconds
+        setTimeout(initWebSocket, 3000);
+    };
+    
+    chatSocket.onerror = function(e) {
+        document.getElementById('connection-status').innerHTML = '<span class="badge bg-danger">Error</span> Connection failed';
+    };
+}
+
+// Add message to chat UI
+function addMessageToChat(message, sender, timestamp) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const isCurrentUser = sender === currentUser;
+    
+    const messageHtml = `
+        <div class="mb-2 ${isCurrentUser ? 'text-end' : ''}">
+            <div class="d-inline-block p-2 rounded ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}">
+                <strong>${isCurrentUser ? 'You' : sender}:</strong> ${message}
+                <br><small class="${isCurrentUser ? 'text-light' : 'text-muted'}">${timestamp}</small>
+            </div>
+        </div>
+    `;
+    
+    messagesDiv.innerHTML += messageHtml;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
 // Handle form submission
 document.getElementById('message-form').addEventListener('submit', function(e) {
@@ -65,51 +102,19 @@ document.getElementById('message-form').addEventListener('submit', function(e) {
     const messageInput = document.getElementById('message-input');
     const message = messageInput.value.trim();
     
-    if (message) {
-        // Send via AJAX
-        fetch('{% url "send_message" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                booking_id: {{ booking.id }},
-                message: message
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert('Error: ' + data.error);
-            } else {
-                messageInput.value = '';
-                // Add message to chat immediately
-                const messagesDiv = document.getElementById('chat-messages');
-                const isCurrentUser = true;
-                const messageHtml = `
-                    <div class="mb-2 text-end">
-                        <div class="d-inline-block p-2 rounded bg-primary text-white">
-                            <strong>You:</strong> ${message}
-                            <br><small class="text-light">${data.timestamp}</small>
-                        </div>
-                    </div>
-                `;
-                messagesDiv.innerHTML += messageHtml;
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to send message');
-        });
+    if (message && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({
+            'message': message
+        }));
+        messageInput.value = '';
     }
 });
 
-// Scroll to bottom on page load
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     const messagesDiv = document.getElementById('chat-messages');
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    initWebSocket();
 });
 </script>
 {% endblock %}

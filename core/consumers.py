@@ -3,25 +3,25 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
 from .models import Booking, ChatMessage
+from asgiref.sync import sync_to_async
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.booking_id = self.scope['url_route']['kwargs']['booking_id']
         self.room_group_name = f'chat_{self.booking_id}'
         
-        # Accept connection first, then check access
-        await self.accept()
-        
-        # Check if user has access to this booking
+        # Check authentication before accepting
         if not self.scope['user'].is_authenticated:
             await self.close(code=4001)
             return
             
+        # Quick access check
         has_access = await self.check_booking_access()
         if not has_access:
             await self.close(code=4003)
             return
         
+        await self.accept()
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -34,22 +34,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        message = data['message']
-        
-        # Save message to database
-        chat_message = await self.save_message(message)
-        
-        # Send message to room group
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message,
-                'sender': self.scope['user'].username,
-                'timestamp': chat_message.timestamp.strftime('%H:%M')
-            }
-        )
+        try:
+            data = json.loads(text_data)
+            message = data.get('message', '').strip()
+            
+            if not message:
+                return
+                
+            # Send message immediately to group
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%H:%M')
+            
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': message,
+                    'sender': self.scope['user'].username,
+                    'timestamp': timestamp
+                }
+            )
+            
+            # Save to database asynchronously (non-blocking)
+            await self.save_message(message)
+            
+        except json.JSONDecodeError:
+            pass
     
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({

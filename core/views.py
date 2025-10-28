@@ -3,10 +3,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from .models import UserProfile, Booking, ChatMessage
-import json
 
 def home(request):
     if request.user.is_authenticated:
@@ -230,43 +228,7 @@ def chat_view(request, booking_id):
         'messages': chat_messages
     })
 
-@csrf_exempt
-def send_message(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Authentication required'}, status=401)
-        
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        booking_id = data.get('booking_id')
-        message_text = data.get('message')
-        
-        if not booking_id or not message_text:
-            return JsonResponse({'error': 'Missing booking_id or message'}, status=400)
-        
-        booking = get_object_or_404(Booking, id=booking_id)
-        
-        # Check if user has access and booking is assigned
-        if not (booking.customer == request.user or booking.delivery_partner == request.user):
-            return JsonResponse({'error': 'Unauthorized access to this chat'}, status=403)
-        
-        # Ensure booking is assigned (has delivery partner)
-        if not booking.delivery_partner or booking.status in ['pending', 'cancelled']:
-            return JsonResponse({'error': 'Chat not available for this booking'}, status=400)
-        
-        message = ChatMessage.objects.create(
-            booking=booking,
-            sender=request.user,
-            message=message_text.strip()
-        )
-        
-        return JsonResponse({
-            'id': message.id,
-            'sender': message.sender.username,
-            'message': message.message,
-            'timestamp': message.timestamp.strftime('%H:%M')
-        })
-    
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 @login_required
 def simple_chat_view(request, booking_id):
@@ -281,17 +243,6 @@ def simple_chat_view(request, booking_id):
     if booking.status in ['pending', 'cancelled'] or not booking.delivery_partner:
         messages.error(request, 'Chat not available')
         return redirect('customer_dashboard' if profile.role == 'customer' else 'delivery_dashboard')
-    
-    # Handle message sending
-    if request.method == 'POST':
-        message_text = request.POST.get('message', '').strip()
-        if message_text:
-            ChatMessage.objects.create(
-                booking=booking,
-                sender=request.user,
-                message=message_text
-            )
-        return redirect('simple_chat', booking_id=booking_id)
     
     chat_messages = ChatMessage.objects.filter(booking=booking).order_by('timestamp')
     return render(request, 'core/chat_simple.html', {

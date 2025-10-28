@@ -40,63 +40,74 @@
 <script>
     const bookingId = {{ booking.id }};
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const chatSocket = new WebSocket(
-        wsProtocol + '//' + window.location.host + '/ws/chat/' + bookingId + '/'
-    );
+    let chatSocket;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
     
-    console.log('Connecting to WebSocket:', wsProtocol + '//' + window.location.host + '/ws/chat/' + bookingId + '/');
-
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
+    function connectWebSocket() {
+        chatSocket = new WebSocket(
+            wsProtocol + '//' + window.location.host + '/ws/chat/' + bookingId + '/'
+        );
+        
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            addMessageToChat(data);
+        };
+        
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+        };
+        
+        chatSocket.onclose = function(e) {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    connectWebSocket();
+                }, 1000 * reconnectAttempts);
+            }
+        };
+    }
+    
+    function addMessageToChat(data) {
         const messagesDiv = document.querySelector('#chat-messages');
         const isCurrentUser = data.sender === '{{ user.username }}';
         
-        const messageHtml = `
-            <div class="mb-2 ${isCurrentUser ? 'text-end' : ''}">
-                <div class="d-inline-block p-2 rounded ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}">
-                    <strong>${data.sender}:</strong> ${data.message}
-                    <br><small class="${isCurrentUser ? 'text-light' : 'text-muted'}">${data.timestamp}</small>
-                </div>
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `mb-2 ${isCurrentUser ? 'text-end' : ''}`;
+        messageDiv.innerHTML = `
+            <div class="d-inline-block p-2 rounded ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}">
+                <strong>${data.sender}:</strong> ${data.message}
+                <br><small class="${isCurrentUser ? 'text-light' : 'text-muted'}">${data.timestamp}</small>
             </div>
         `;
         
-        messagesDiv.innerHTML += messageHtml;
+        messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    };
+    }
+    
+    connectWebSocket();
 
-    chatSocket.onopen = function(e) {
-        console.log('WebSocket connected successfully');
-    };
-    
-    chatSocket.onclose = function(e) {
-        console.error('Chat socket closed:', e.code, e.reason);
-        // Try to reconnect after 3 seconds
-        setTimeout(function() {
-            location.reload();
-        }, 3000);
-    };
-    
-    chatSocket.onerror = function(e) {
-        console.error('WebSocket error:', e);
-    };
+
 
     document.querySelector('#message-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            document.querySelector('#send-button').click();
+            e.preventDefault();
+            sendMessage();
         }
     });
 
-    document.querySelector('#send-button').addEventListener('click', function(e) {
+    function sendMessage() {
         const messageInputDom = document.querySelector('#message-input');
-        const message = messageInputDom.value;
+        const message = messageInputDom.value.trim();
         
-        if (message.trim() !== '') {
-            chatSocket.send(JSON.stringify({
-                'message': message
-            }));
+        if (message && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ 'message': message }));
             messageInputDom.value = '';
         }
-    });
+    }
+    
+    document.querySelector('#send-button').addEventListener('click', sendMessage);
 
     // Scroll to bottom on page load
     document.addEventListener('DOMContentLoaded', function() {
