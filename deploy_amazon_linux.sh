@@ -12,13 +12,9 @@ sudo yum install -y python3 python3-pip git
 
 # Install Redis
 sudo amazon-linux-extras install redis6 -y
-sudo systemctl start redis
-sudo systemctl enable redis
-
-# Create app directory
-sudo mkdir -p /opt/fooddelivery
-sudo chown ec2-user:ec2-user /opt/fooddelivery
-cd /opt/fooddelivery
+sudo systemctl start redis6
+sudo systemctl enable redis6
+sudo systemctl status redis6
 
 # Setup virtual environment
 python3 -m venv venv
@@ -32,5 +28,6 @@ export DJANGO_SETTINGS_MODULE=fooddelivery.settings
 python manage.py migrate
 python manage.py collectstatic --noinput
 python manage.py setup_data
+nohup daphne -b 0.0.0.0 -p 8000 fooddelivery.asgi:application > app.log 2>&1 &
 
 echo "✅ Setup complete!"
