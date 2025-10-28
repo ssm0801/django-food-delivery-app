@@ -8,10 +8,9 @@ echo "🚀 Deploying Food Delivery App to Amazon Linux EC2..."
 sudo yum update -y
 
 # Install required packages
-sudo yum install -y python3 python3-pip git
+sudo yum install -y python3 python3-pip git redis6
 
-# Install Redis
-sudo amazon-linux-extras install redis6 -y
+# Start Redis
 sudo systemctl start redis6
 sudo systemctl enable redis6
 sudo systemctl status redis6
